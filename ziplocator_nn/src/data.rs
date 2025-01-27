@@ -1,7 +1,11 @@
-use std::io::Cursor;
+use std::{
+    io::Cursor,
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use burn::{
-    data::dataloader::batcher::Batcher,
+    data::dataloader::{batcher::Batcher, DataLoader, DataLoaderBuilder},
     prelude::Backend,
     tensor::{Tensor, TensorData},
 };
@@ -25,13 +29,13 @@ pub struct ZipItem {
 
 pub type ZipDataset = DataframeDataset<ZipItem>;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ZipBatcher<B: Backend>(pub B::Device);
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ZipBatch<B: Backend> {
-    zips: Tensor<B, 2>,
-    locations: Tensor<B, 2>,
+    pub zips: Tensor<B, 2>,
+    pub locations: Tensor<B, 2>,
 }
 
 fn load_dataframe() -> DataFrame {
@@ -58,6 +62,18 @@ fn load_dataframe() -> DataFrame {
 
 pub fn load_dataset() -> ZipDataset {
     DataframeDataset::new(load_dataframe()).expect("Create dataset from dataframe")
+}
+
+pub fn create_loader<B: Backend>(device: &B::Device) -> Arc<dyn DataLoader<ZipBatch<B>>> {
+    DataLoaderBuilder::new(ZipBatcher(device.clone()))
+        .batch_size(100)
+        .shuffle(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64,
+        )
+        .build(load_dataset())
 }
 
 impl<B: Backend> Batcher<ZipItem, ZipBatch<B>> for ZipBatcher<B> {
