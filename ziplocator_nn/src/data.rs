@@ -20,11 +20,11 @@ const DATASET_URL: &str =
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct ZipItem {
-    zip: u32,
+    pub zip: u32,
     #[serde(rename = "lat")]
-    latitude: f64,
+    pub latitude: f64,
     #[serde(rename = "lng")]
-    longitude: f64,
+    pub longitude: f64,
 }
 
 pub type ZipDataset = DataframeDataset<ZipItem>;
