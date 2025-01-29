@@ -3,7 +3,7 @@ mod map;
 use iced::{
     futures::{SinkExt, Stream},
     widget::{self, image::Handle as ImageHandle},
-    Element, Length, Subscription,
+    Element, Subscription,
 };
 use map::widget::MapWidget;
 use tokio::sync::mpsc;
@@ -14,36 +14,55 @@ use crate::map::worker::{MapCommand, MapWorker};
 pub struct State {
     map_controller: Option<mpsc::Sender<MapCommand>>,
     map_frame: Option<ImageHandle>,
+    zip_code: String,
 }
 
 #[derive(Clone, Debug)]
 pub enum Message {
     SetMapController(mpsc::Sender<MapCommand>),
     UpdateMapFrame(ImageHandle),
+    ZipCodeChanged(String),
+    RunPrediction,
 }
 
 fn view(state: &State) -> Element<Message> {
-    let mut stack = widget::Stack::new()
-        .width(Length::Fill)
-        .height(Length::Fill);
+    let controls = widget::container(
+        widget::row![
+            widget::text_input("Enter zip code...", &state.zip_code)
+                .style(|theme, status| {
+                    let mut style = widget::text_input::default(theme, status);
+                    if let Err(_) = state.zip_code.parse::<u32>() {
+                        style.border.color = theme.palette().danger;
+                    }
+                    style
+                })
+                .on_input(Message::ZipCodeChanged)
+                .on_submit(Message::RunPrediction)
+                .width(200),
+            widget::button(widget::text!("Predict!"))
+                .style(widget::button::primary)
+                .on_press(Message::RunPrediction)
+        ]
+        .spacing(10),
+    )
+    .padding(10);
 
-    if let (Some(controller), Some(frame)) = (&state.map_controller, &state.map_frame) {
-        let map = MapWidget { controller, frame };
-        stack = stack.push(map);
-    }
+    let map: Element<_> =
+        if let (Some(controller), Some(frame)) = (&state.map_controller, &state.map_frame) {
+            MapWidget { controller, frame }.into()
+        } else {
+            widget::row![].into()
+        };
 
-    let controls =
-        widget::container(widget::button(widget::text!("Test!"))).padding(iced::padding::all(10));
-
-    stack = stack.push(controls);
-
-    stack.into()
+    widget::column![controls, map].into()
 }
 
 fn update(state: &mut State, message: Message) {
     match message {
         Message::SetMapController(controller) => state.map_controller = Some(controller),
         Message::UpdateMapFrame(handle) => state.map_frame = Some(handle),
+        Message::ZipCodeChanged(zip_code) => state.zip_code = zip_code,
+        Message::RunPrediction => todo!(),
     }
 }
 
