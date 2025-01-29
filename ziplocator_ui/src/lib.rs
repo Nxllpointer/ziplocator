@@ -49,7 +49,7 @@ fn update(state: &mut State, message: Message) {
 
 fn map_worker() -> impl Stream<Item = Message> {
     iced::stream::channel(10, |mut messages| async move {
-        let (command_tx, command_rx) = mpsc::channel(10);
+        let (command_tx, command_rx) = mpsc::channel(999);
         let (frame_tx, mut frame_rx) = mpsc::channel(10);
 
         messages

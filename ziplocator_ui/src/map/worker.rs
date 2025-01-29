@@ -80,7 +80,7 @@ impl MapWorker {
 
         while !self.frame_tx.is_closed() {
             while let Ok(command) = self.command_rx.try_recv() {
-                let view = self.map.view();
+                let view = self.map.target_view();
                 match command {
                     MapCommand::SetSize(size) => {
                         let new_size =
@@ -119,7 +119,7 @@ impl MapWorker {
                     .await
                     .expect("Failed to get image bitmap from texture");
 
-                let size = self.map.view().size();
+                let size = self.map.target_view().size();
                 self.frame_tx
                     .send(iced::advanced::image::Handle::from_rgba(
                         size.width() as u32,
