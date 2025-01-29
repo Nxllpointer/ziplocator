@@ -4,8 +4,8 @@ pub mod model;
 mod train;
 
 pub use data::*;
-pub use model::*;
 pub use infer::*;
+pub use model::*;
 pub use train::*;
 
 pub const ARTIFACT_DIR: &str = "./learn/";

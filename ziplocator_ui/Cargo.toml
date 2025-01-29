@@ -4,3 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+galileo.workspace = true
+iced.workspace = true
+pollster.workspace = true
+tokio.workspace = true
