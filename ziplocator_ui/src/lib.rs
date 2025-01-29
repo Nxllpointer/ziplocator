@@ -1,5 +1,6 @@
 mod map;
 
+use galileo::galileo_types::latlon;
 use iced::{
     futures::{SinkExt, Stream},
     widget::{self, image::Handle as ImageHandle},
@@ -12,6 +13,7 @@ use crate::map::worker::{MapCommand, MapWorker};
 
 #[derive(Default)]
 pub struct State {
+    inferrer: Box<dyn ziplocator_nn::Inferrer>,
     map_controller: Option<mpsc::Sender<MapCommand>>,
     map_frame: Option<ImageHandle>,
     zip_code: String,
@@ -62,7 +64,21 @@ fn update(state: &mut State, message: Message) {
         Message::SetMapController(controller) => state.map_controller = Some(controller),
         Message::UpdateMapFrame(handle) => state.map_frame = Some(handle),
         Message::ZipCodeChanged(zip_code) => state.zip_code = zip_code,
-        Message::RunPrediction => todo!(),
+        Message::RunPrediction => {
+            let (Some(map_controller), Ok(zip)) = (&state.map_controller, state.zip_code.parse())
+            else {
+                return;
+            };
+
+            let prediction = state.inferrer.infer(zip);
+
+            map_controller
+                .try_send(MapCommand::PlacePins {
+                    prediction: Some(latlon!(prediction.latitude, prediction.longitude)),
+                    dataset: None,
+                })
+                .ok();
+        }
     }
 }
 

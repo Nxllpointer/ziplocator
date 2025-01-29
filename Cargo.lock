@@ -10130,6 +10130,7 @@ dependencies = [
  "iced",
  "pollster",
  "tokio",
+ "ziplocator_nn",
 ]
 
 [[package]]

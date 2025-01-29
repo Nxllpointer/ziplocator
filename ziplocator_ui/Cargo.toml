@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ziplocator_nn.workspace = true
 galileo.workspace = true
 iced.workspace = true
 pollster.workspace = true

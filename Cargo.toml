@@ -6,6 +6,7 @@ members = [
 ]
 
 [workspace.dependencies]
+ziplocator_nn = { path = "./ziplocator_nn/" }
 burn = { version = "0.16.0", features = ["train", "tui", "metrics", "autodiff", "ndarray"] }
 burn-dataset = { version = "*", features = ["dataframe"] }
 polars = { version = "*", features = [] }

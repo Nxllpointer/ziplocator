@@ -1,5 +1,9 @@
 use burn::{
-    backend::{ndarray::NdArrayDevice, NdArray}, module::Module, prelude::Backend, record::{FullPrecisionSettings, PrettyJsonFileRecorder}, tensor::{Tensor, TensorData}
+    backend::{ndarray::NdArrayDevice, NdArray},
+    module::Module,
+    prelude::Backend,
+    record::{FullPrecisionSettings, PrettyJsonFileRecorder},
+    tensor::{Tensor, TensorData},
 };
 
 use crate::ZipItem;

@@ -9,20 +9,32 @@ use std::{
 use galileo::{
     galileo_types::{
         cartesian::{Point2d, Size},
+        geo::{impls::GeoPoint2d, Crs},
+        geometry_type::GeoSpace2d,
         latlon,
     },
-    layer::{data_provider::UrlImageProvider, RasterTileLayer},
+    layer::{data_provider::UrlImageProvider, FeatureLayer, RasterTileLayer},
     render::WgpuRenderer,
+    symbol::CirclePointSymbol,
     tile_scheme::TileIndex,
-    Map, MapView, Messenger, TileSchema,
+    Color, Map, MapView, Messenger, TileSchema,
 };
 use iced::wgpu;
 use tokio::sync::mpsc;
 
 pub enum MapCommand {
     SetSize(iced::Size),
-    Zoom { multiplier: f64 },
-    Move { from: iced::Point, to: iced::Point },
+    Zoom {
+        multiplier: f64,
+    },
+    Move {
+        from: iced::Point,
+        to: iced::Point,
+    },
+    PlacePins {
+        prediction: Option<GeoPoint2d>,
+        dataset: Option<GeoPoint2d>,
+    },
 }
 
 pub struct MapWorker {
@@ -103,6 +115,22 @@ impl MapWorker {
                         self.map
                             .animate_to(view.translate_by_pixels(from, to), Duration::ZERO);
                     }
+                    MapCommand::PlacePins {
+                        prediction,
+                        dataset,
+                    } => {
+                        let layers = self.map.layers_mut();
+                        layers.truncate(1);
+
+                        if let Some(dataset) = dataset {
+                            layers.push(create_pin_layer(dataset, Color::BLUE));
+                        }
+                        if let Some(prediction) = prediction {
+                            layers.push(create_pin_layer(prediction, Color::RED));
+                        }
+
+                        self.map.redraw();
+                    }
                 }
             }
 
@@ -139,6 +167,17 @@ impl MapWorker {
 fn align_length(length: f32) -> u32 {
     (length / wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as f32).ceil() as u32
         * wgpu::COPY_BYTES_PER_ROW_ALIGNMENT
+}
+
+fn create_pin_layer(
+    location: GeoPoint2d,
+    color: Color,
+) -> FeatureLayer<GeoPoint2d, GeoPoint2d, CirclePointSymbol, GeoSpace2d> {
+    FeatureLayer::new(
+        vec![location],
+        CirclePointSymbol::new(color, 10.0),
+        Crs::WGS84,
+    )
 }
 
 #[derive(Clone)]
