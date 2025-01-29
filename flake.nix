@@ -8,7 +8,9 @@
   outputs = { self, nixpkgs }: let
     pkgs = import nixpkgs { system = "x86_64-linux"; };
   in {
-    devShells.x86_64-linux.default = pkgs.mkShell {
+    devShells.x86_64-linux.default = pkgs.mkShell.override {
+      stdenv = pkgs.stdenvAdapters.useMoldLinker pkgs.clangStdenv;
+    } {
       packages = with pkgs; with xorg; [
         cargo rustc rust-analyzer rustfmt pkg-config openssl cmake
       ];
