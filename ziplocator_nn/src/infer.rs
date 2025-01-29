@@ -1,18 +1,19 @@
 use burn::{
-    module::Module,
-    prelude::Backend,
-    record::{FullPrecisionSettings, PrettyJsonFileRecorder},
-    tensor::{Tensor, TensorData},
+    backend::{ndarray::NdArrayDevice, NdArray}, module::Module, prelude::Backend, record::{FullPrecisionSettings, PrettyJsonFileRecorder}, tensor::{Tensor, TensorData}
 };
 
 use crate::ZipItem;
 
-pub struct Inferrer<B: Backend> {
+pub trait Inferrer {
+    fn infer(&self, zip: u32) -> crate::ZipItem;
+}
+
+pub struct InferrerImpl<B: Backend> {
     device: B::Device,
     model: crate::ZipModel<B>,
 }
 
-impl<B: Backend> Inferrer<B> {
+impl<B: Backend> InferrerImpl<B> {
     pub fn load(device: B::Device) -> Self {
         let model = crate::ZipModel::<B>::new(&device)
             .load_file(
@@ -24,8 +25,10 @@ impl<B: Backend> Inferrer<B> {
 
         Self { device, model }
     }
+}
 
-    pub fn infer(&self, zip: u32) -> crate::ZipItem {
+impl<B: Backend> Inferrer for InferrerImpl<B> {
+    fn infer(&self, zip: u32) -> crate::ZipItem {
         let zips_data = TensorData::new(vec![zip as f64], vec![1, 1]);
         let zips = Tensor::from_data(zips_data, &self.device);
 
@@ -37,5 +40,11 @@ impl<B: Backend> Inferrer<B> {
             latitude: locations_data[0] as f64,
             longitude: locations_data[1] as f64,
         }
+    }
+}
+
+impl Default for Box<dyn Inferrer> {
+    fn default() -> Self {
+        Box::new(InferrerImpl::<NdArray>::load(NdArrayDevice::Cpu))
     }
 }
