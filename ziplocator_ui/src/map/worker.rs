@@ -156,7 +156,6 @@ impl MapWorker {
                     ))
                     .await
                     .ok();
-                dbg!("draw");
             }
 
             tokio::task::yield_now().await;
