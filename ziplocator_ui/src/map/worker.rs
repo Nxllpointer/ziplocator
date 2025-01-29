@@ -9,9 +9,11 @@ use galileo::{
     tile_scheme::TileIndex,
     DummyMessenger, Map, MapBuilder, MapView, TileSchema,
 };
+use iced::wgpu;
 use tokio::sync::mpsc;
 
 pub enum MapCommand {
+    SetSize(iced::Size),
     Zoom { multiplier: f64 },
     Move { from: iced::Point, to: iced::Point },
 }
@@ -29,8 +31,7 @@ impl MapWorker {
     ) -> Self {
         let tile_schema = TileSchema::web(18);
 
-        let view = MapView::new(&latlon!(52.0, 0.0), tile_schema.lod_resolution(17).unwrap())
-            .with_size(Size::new(512.0, 512.0));
+        let view = MapView::new(&latlon!(52.0, 0.0), tile_schema.lod_resolution(17).unwrap());
 
         let raster = MapBuilder::create_raster_tile_layer(
             |index: &TileIndex| {
@@ -52,13 +53,26 @@ impl MapWorker {
     }
 
     pub async fn run(mut self) {
-        let renderer = WgpuRenderer::new_with_texture_rt(Size::new(512, 512))
-            .await
-            .expect("failed to create renderer");
+        let mut renderer = WgpuRenderer::new_with_texture_rt(Size::new(
+            wgpu::COPY_BYTES_PER_ROW_ALIGNMENT,
+            wgpu::COPY_BYTES_PER_ROW_ALIGNMENT,
+        ))
+        .await
+        .expect("failed to create renderer");
+
         loop {
             while let Ok(command) = self.command_rx.try_recv() {
                 let view = self.map.view();
                 match command {
+                    MapCommand::SetSize(size) => {
+                        let new_size =
+                            Size::new(align_length(size.width), align_length(size.height));
+                        if new_size != view.size().cast() {
+                            renderer.resize(new_size);
+                            self.map
+                                .animate_to(view.with_size(new_size.cast()), Duration::ZERO);
+                        }
+                    }
                     MapCommand::Zoom { multiplier } => {
                         self.map.animate_to(
                             view.with_resolution(view.resolution() * multiplier),
@@ -85,10 +99,20 @@ impl MapWorker {
                 .await
                 .expect("failed to get image bitmap from texture");
 
+            let size = self.map.view().size();
             self.frame_tx
-                .send(iced::advanced::image::Handle::from_rgba(512, 512, bitmap))
+                .send(iced::advanced::image::Handle::from_rgba(
+                    size.width() as u32,
+                    size.height() as u32,
+                    bitmap,
+                ))
                 .await
                 .ok();
         }
     }
+}
+
+fn align_length(length: f32) -> u32 {
+    (length / wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as f32).ceil() as u32
+        * wgpu::COPY_BYTES_PER_ROW_ALIGNMENT
 }

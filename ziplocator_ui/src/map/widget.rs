@@ -38,7 +38,11 @@ impl<'a, Message, Theme, Renderer: iced::advanced::image::Renderer<Handle = Imag
         _renderer: &Renderer,
         limits: &iced::advanced::layout::Limits,
     ) -> iced::advanced::layout::Node {
-        Node::new(limits.max())
+        let size = limits.max();
+        self.controller
+            .blocking_send(MapCommand::SetSize(size))
+            .ok();
+        Node::new(size)
     }
 
     fn update(

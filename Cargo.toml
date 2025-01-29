@@ -13,6 +13,6 @@ data_downloader = { version = "0.2.0", features = ["zip"] }
 hex-literal = "0.4.1"
 serde = { version = "1.0.217", features = ["derive"] }
 galileo = { git = "https://github.com/Nxllpointer/galileo.git" }
-iced = { git = "https://github.com/iced-rs/iced.git", features = ["image", "advanced", "tokio"] }
+iced = { git = "https://github.com/iced-rs/iced.git", features = ["image", "lazy", "advanced", "tokio"] }
 pollster = "0.4.0"
 tokio = "1.43.0"
