@@ -9,3 +9,4 @@ galileo.workspace = true
 iced.workspace = true
 pollster.workspace = true
 tokio.workspace = true
+opener.workspace = true

@@ -4,7 +4,7 @@ use galileo::galileo_types::latlon;
 use iced::{
     futures::{SinkExt, Stream},
     widget::{self, image::Handle as ImageHandle},
-    Element, Subscription,
+    Color, Element, Length, Subscription,
 };
 use map::widget::MapWidget;
 use tokio::sync::mpsc;
@@ -25,6 +25,7 @@ pub enum Message {
     UpdateMapFrame(ImageHandle),
     ZipCodeChanged(String),
     RunPrediction,
+    OpenLink(String),
 }
 
 fn view(state: &State) -> Element<Message> {
@@ -51,7 +52,22 @@ fn view(state: &State) -> Element<Message> {
 
     let map: Element<_> =
         if let (Some(controller), Some(frame)) = (&state.map_controller, &state.map_frame) {
-            MapWidget { controller, frame }.into()
+            let map = MapWidget { controller, frame };
+
+            let attribution = widget::container(
+                widget::button(widget::text!("Data from OpenStreetMap"))
+                    .style(|theme, status| widget::button::Style {
+                        text_color: Color::BLACK,
+                        ..widget::button::text(theme, status)
+                    })
+                    .on_press(Message::OpenLink(
+                        "https://www.openstreetmap.org/fixthemap".into(),
+                    )),
+            )
+            .align_right(Length::Fill)
+            .align_bottom(Length::Fill);
+
+            widget::stack!(map, attribution).into()
         } else {
             widget::row![].into()
         };
@@ -78,6 +94,9 @@ fn update(state: &mut State, message: Message) {
                     dataset: None,
                 })
                 .ok();
+        }
+        Message::OpenLink(link) => {
+            opener::open(link).ok();
         }
     }
 }

@@ -50,7 +50,10 @@ impl MapWorker {
         frame_tx: mpsc::Sender<iced::advanced::image::Handle>,
     ) -> Self {
         let tile_schema = TileSchema::web(18);
-        let view = MapView::new(&latlon!(35.0, -95.0), tile_schema.lod_resolution(4).unwrap());
+        let view = MapView::new(
+            &latlon!(35.0, -95.0),
+            tile_schema.lod_resolution(4).unwrap(),
+        );
 
         let redraw_requested = Arc::new(AtomicBool::new(true));
         let redraw_messenger = RedrawMessenger(redraw_requested.clone());

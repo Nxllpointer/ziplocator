@@ -17,3 +17,4 @@ galileo = { git = "https://github.com/Nxllpointer/galileo.git" }
 iced = { git = "https://github.com/iced-rs/iced.git", features = ["image", "lazy", "advanced", "tokio"] }
 pollster = "0.4.0"
 tokio = "1.43.0"
+opener = "0.7.2"
