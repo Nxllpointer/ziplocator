@@ -4,7 +4,7 @@ use galileo::galileo_types::{geo::GeoPoint, latlon};
 use iced::{
     futures::{SinkExt, Stream},
     widget::{self, image::Handle as ImageHandle},
-    Color, Element, Length, Subscription,
+    Alignment, Color, Element, Length, Subscription,
 };
 use map::{widget::MapWidget, worker::MapMessage};
 use tokio::sync::mpsc;
@@ -59,8 +59,11 @@ fn view(state: &State) -> Element<Message> {
                 .width(200),
             widget::button(widget::text!("Predict!"))
                 .style(widget::button::primary)
-                .on_press(Message::RunPrediction)
+                .on_press(Message::RunPrediction),
+            widget::horizontal_space(),
+            widget::text!("Enter a zip code or right click the map")
         ]
+        .align_y(Alignment::Center)
         .spacing(10),
     )
     .padding(10);
