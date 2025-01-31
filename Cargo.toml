@@ -12,7 +12,7 @@ ziplocator_nn = { path = "./ziplocator_nn/" }
 
 burn = { version = "0.16.0", features = ["train", "tui", "metrics", "autodiff", "ndarray"] }
 burn-dataset = { version = "*", features = ["dataframe"] }
-polars = { version = "*", features = [] }
+polars = { version = "*", features = ["abs"] }
 data_downloader = { version = "0.2.0", features = ["zip"] }
 hex-literal = "0.4.1"
 serde = { version = "1.0.217", features = ["derive"] }

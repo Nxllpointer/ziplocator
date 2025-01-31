@@ -9,7 +9,7 @@ use std::{
 use galileo::{
     galileo_types::{
         cartesian::{Point2d, Size},
-        geo::{impls::GeoPoint2d, Crs},
+        geo::{impls::GeoPoint2d, Crs, GeoPoint},
         geometry_type::GeoSpace2d,
         latlon,
     },
@@ -20,7 +20,7 @@ use galileo::{
     Color, Map, MapView, Messenger, TileSchema,
 };
 use iced::wgpu;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 
 pub enum MapCommand {
     SetSize(iced::Size),
@@ -34,6 +34,10 @@ pub enum MapCommand {
     PlacePins {
         prediction: Option<GeoPoint2d>,
         dataset: Option<GeoPoint2d>,
+    },
+    QueryLocation {
+        screen_pos: iced::Point,
+        location_tx: oneshot::Sender<(f64, f64)>,
     },
 }
 
@@ -133,6 +137,15 @@ impl MapWorker {
                         }
 
                         self.map.redraw();
+                    }
+                    MapCommand::QueryLocation {
+                        screen_pos,
+                        location_tx,
+                    } => {
+                        let screen_pos = [screen_pos.x as f64, screen_pos.y as f64].into();
+                        if let Some(geo) = view.screen_to_map_geo(screen_pos) {
+                            location_tx.send((geo.lat(), geo.lon())).ok();
+                        }
                     }
                 }
             }

@@ -51,7 +51,7 @@ impl Dataset {
         if matching_zips.height() > 0 {
             let lat = matching_zips
                 .column("lat")
-                .expect("Latittude")
+                .expect("Latitude")
                 .f64()
                 .ok()?
                 .get(0)?;
@@ -63,6 +63,36 @@ impl Dataset {
                 .get(0)?;
 
             Some((lat, lng))
+        } else {
+            None
+        }
+    }
+
+    pub fn nearest_zip(&self, lat: f64, lon: f64) -> Option<u32> {
+        let lat = lit(lat);
+        let lon = lit(lon);
+
+        let zips_descending = self
+            .0
+            .clone()
+            .lazy()
+            .with_columns([
+                (col("lat") - lat).abs().alias("lat_diff"),
+                (col("lng") - lon).abs().alias("lng_diff"),
+            ])
+            .with_columns([(col("lat_diff") + col("lng_diff")).alias("loc_diff")])
+            .sort(["loc_diff"], SortMultipleOptions::default())
+            .collect()
+            .expect("Finding nearest zip code");
+
+        if zips_descending.height() > 0 {
+            zips_descending
+                .column("zip")
+                .ok()?
+                .cast(&DataType::UInt32)
+                .ok()?
+                .try_u32()?
+                .get(0)
         } else {
             None
         }

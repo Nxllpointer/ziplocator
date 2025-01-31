@@ -40,6 +40,7 @@ pub enum Message {
     ZipCodeChanged(String),
     RunPrediction,
     OpenLink(String),
+    LocationClicked(f64, f64),
 }
 
 fn view(state: &State) -> Element<Message> {
@@ -66,7 +67,11 @@ fn view(state: &State) -> Element<Message> {
 
     let map: Element<_> =
         if let (Some(controller), Some(frame)) = (&state.map_controller, &state.map_frame) {
-            let map = MapWidget { controller, frame };
+            let map = MapWidget {
+                controller,
+                frame,
+                location_clicked: &Message::LocationClicked,
+            };
 
             let legend = if state.legend_visible {
                 Some(
@@ -138,6 +143,12 @@ fn update(state: &mut State, message: Message) {
         }
         Message::OpenLink(link) => {
             opener::open(link).ok();
+        }
+        Message::LocationClicked(lat, lon) => {
+            if let Some(zip) = state.dataset.nearest_zip(lat, lon) {
+                state.zip_code = zip.to_string();
+                update(state, Message::RunPrediction);
+            }
         }
     }
 }
