@@ -1,3 +1,4 @@
+use galileo::galileo_types::geo::impls::GeoPoint2d;
 use iced::{
     advanced::{layout::Node, widget::tree, Widget},
     widget::image::Handle as ImageHandle,
@@ -10,13 +11,13 @@ use super::worker::MapCommand;
 pub struct MapWidget<'a, Message> {
     pub frame: &'a ImageHandle,
     pub controller: &'a mpsc::Sender<MapCommand>,
-    pub location_clicked: &'a dyn Fn(f64, f64) -> Message,
+    pub location_clicked: &'a dyn Fn(GeoPoint2d) -> Message,
 }
 
 #[derive(Default)]
 struct MapState {
     grab_start: Option<Point>,
-    location_rx: Option<oneshot::Receiver<(f64, f64)>>,
+    location_rx: Option<oneshot::Receiver<GeoPoint2d>>,
 }
 
 impl<'a, Message, Theme, Renderer: iced::advanced::image::Renderer<Handle = ImageHandle>>
@@ -107,8 +108,8 @@ impl<'a, Message, Theme, Renderer: iced::advanced::image::Renderer<Handle = Imag
         };
 
         if let Some(location_rx) = &mut state.location_rx {
-            if let Ok((lat, lon)) = location_rx.try_recv() {
-                shell.publish((self.location_clicked)(lat, lon));
+            if let Ok(geo) = location_rx.try_recv() {
+                shell.publish((self.location_clicked)(geo));
             }
         }
     }

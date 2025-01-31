@@ -1,6 +1,9 @@
 mod map;
 
-use galileo::galileo_types::latlon;
+use galileo::galileo_types::{
+    geo::{impls::GeoPoint2d, GeoPoint},
+    latlon,
+};
 use iced::{
     futures::{SinkExt, Stream},
     widget::{self, image::Handle as ImageHandle},
@@ -40,7 +43,7 @@ pub enum Message {
     ZipCodeChanged(String),
     RunPrediction,
     OpenLink(String),
-    LocationClicked(f64, f64),
+    LocationClicked(GeoPoint2d),
 }
 
 fn view(state: &State) -> Element<Message> {
@@ -144,8 +147,8 @@ fn update(state: &mut State, message: Message) {
         Message::OpenLink(link) => {
             opener::open(link).ok();
         }
-        Message::LocationClicked(lat, lon) => {
-            if let Some(zip) = state.dataset.nearest_zip(lat, lon) {
+        Message::LocationClicked(geo) => {
+            if let Some(zip) = state.dataset.nearest_zip(geo.lat(), geo.lon()) {
                 state.zip_code = zip.to_string();
                 update(state, Message::RunPrediction);
             }

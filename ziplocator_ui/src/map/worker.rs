@@ -9,7 +9,7 @@ use std::{
 use galileo::{
     galileo_types::{
         cartesian::{Point2d, Size},
-        geo::{impls::GeoPoint2d, Crs, GeoPoint},
+        geo::{impls::GeoPoint2d, Crs},
         geometry_type::GeoSpace2d,
         latlon,
     },
@@ -37,7 +37,7 @@ pub enum MapCommand {
     },
     QueryLocation {
         screen_pos: iced::Point,
-        location_tx: oneshot::Sender<(f64, f64)>,
+        location_tx: oneshot::Sender<GeoPoint2d>,
     },
 }
 
@@ -144,7 +144,7 @@ impl MapWorker {
                     } => {
                         let screen_pos = [screen_pos.x as f64, screen_pos.y as f64].into();
                         if let Some(geo) = view.screen_to_map_geo(screen_pos) {
-                            location_tx.send((geo.lat(), geo.lon())).ok();
+                            location_tx.send(geo).ok();
                         }
                     }
                 }
