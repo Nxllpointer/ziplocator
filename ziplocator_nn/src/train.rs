@@ -29,7 +29,7 @@ impl<B: Backend> ValidStep<crate::ZipBatch<B>, RegressionOutput<B>> for crate::Z
 pub fn train<B: AutodiffBackend>(device: &B::Device) {
     let model = crate::ZipModel::<B>::new(device);
     let optimizer = AdamConfig::new().init();
-    let lr_scheduler = ExponentialLrSchedulerConfig::new(0.01, 0.9997)
+    let lr_scheduler = ExponentialLrSchedulerConfig::new(0.01, 0.9998)
         .init()
         .unwrap();
 
@@ -40,7 +40,7 @@ pub fn train<B: AutodiffBackend>(device: &B::Device) {
         .metric_train_numeric(LossMetric::new())
         .metric_valid_numeric(LossMetric::new())
         .metric_train(LearningRateMetric::new())
-        .num_epochs(50)
+        .num_epochs(1000)
         .devices(vec![device.clone()])
         .build(model, optimizer, lr_scheduler);
 
@@ -52,6 +52,8 @@ pub fn train<B: AutodiffBackend>(device: &B::Device) {
             &PrettyJsonFileRecorder::<FullPrecisionSettings>::new(),
         )
         .expect("Unable to save model");
+
+    println!("Model saved!");
 
     std::io::stdout().flush().ok();
     std::thread::sleep(Duration::from_millis(100));
