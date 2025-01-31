@@ -30,8 +30,8 @@ pub struct ZipBatch<B: Backend> {
 }
 
 pub fn create_loader<B: Backend>(device: &B::Device) -> Arc<dyn DataLoader<ZipBatch<B>>> {
-    let dataset = DataframeDataset::new(ziplocator_data::load_dataframe())
-        .expect("Create dataset from dataframe");
+    let dataframe = ziplocator_data::Dataset::load().dataframe();
+    let dataset = DataframeDataset::new(dataframe).expect("Create dataset from dataframe");
 
     DataLoaderBuilder::new(ZipBatcher(device.clone()))
         .batch_size(100)
