@@ -4,7 +4,7 @@ use galileo::galileo_types::{geo::GeoPoint, latlon};
 use iced::{
     futures::{SinkExt, Stream},
     widget::{self, image::Handle as ImageHandle},
-    Color, Element, Subscription,
+    Color, Element, Length, Subscription,
 };
 use map::{widget::MapWidget, worker::MapMessage};
 use tokio::sync::mpsc;
@@ -39,6 +39,7 @@ pub enum Message {
     MapMessage(MapMessage),
     ZipCodeChanged(String),
     RunPrediction,
+    ClearPrediction,
     OpenLink(String),
 }
 
@@ -64,48 +65,58 @@ fn view(state: &State) -> Element<Message> {
     )
     .padding(10);
 
-    let map: Element<_> =
-        if let (Some(controller), Some(frame)) = (&state.map_controller, &state.map_frame) {
-            let map = MapWidget { controller, frame };
+    let map: Element<_> = if let (Some(controller), Some(frame)) =
+        (&state.map_controller, &state.map_frame)
+    {
+        let map = MapWidget { controller, frame };
 
-            let legend = if state.legend_visible {
-                Some(
-                    widget::right(
-                        widget::container(widget::column![
+        let legend = if state.legend_visible {
+            Some(
+                widget::right(
+                    widget::container(
+                        widget::column![
                             widget::text!("ʘ Prediction").color(iced::color!(0xFF0000)),
                             widget::text!("ʘ Dataset").color(iced::color!(0x0000FF)),
-                        ])
-                        .style(|theme: &iced::Theme| widget::container::Style {
-                            background: Some(theme.palette().background.into()),
-                            ..widget::container::rounded_box(theme)
-                        })
-                        .padding(10),
+                            widget::horizontal_rule(10),
+                            widget::button(
+                                widget::container(widget::text!("Clear")).center_x(Length::Fill)
+                            )
+                            .style(widget::button::danger)
+                            .on_press(Message::ClearPrediction)
+                        ]
+                        .width(Length::Shrink),
                     )
-                    .padding(5),
-                )
-            } else {
-                None
-            };
-
-            let attribution = widget::bottom_right(
-                widget::button(widget::text!("Data from OpenStreetMap"))
-                    .style(|theme, status| widget::button::Style {
-                        text_color: Color::BLACK,
-                        ..widget::button::text(theme, status)
+                    .style(|theme: &iced::Theme| widget::container::Style {
+                        background: Some(theme.palette().background.into()),
+                        ..widget::container::rounded_box(theme)
                     })
-                    .on_press(Message::OpenLink(
-                        "https://www.openstreetmap.org/fixthemap".into(),
-                    )),
-            );
-
-            widget::Stack::new()
-                .push(map)
-                .push_maybe(legend)
-                .push(attribution)
-                .into()
+                    .padding(10),
+                )
+                .padding(5),
+            )
         } else {
-            widget::row![].into()
+            None
         };
+
+        let attribution = widget::bottom_right(
+            widget::button(widget::text!("Data from OpenStreetMap"))
+                .style(|theme, status| widget::button::Style {
+                    text_color: Color::BLACK,
+                    ..widget::button::text(theme, status)
+                })
+                .on_press(Message::OpenLink(
+                    "https://www.openstreetmap.org/fixthemap".into(),
+                )),
+        );
+
+        widget::Stack::new()
+            .push(map)
+            .push_maybe(legend)
+            .push(attribution)
+            .into()
+    } else {
+        widget::row![].into()
+    };
 
     widget::column![controls, map].into()
 }
@@ -147,6 +158,17 @@ fn update(state: &mut State, message: Message) {
                 .ok();
 
             state.legend_visible = true;
+        }
+        Message::ClearPrediction => {
+            if let Some(map_controller) = &state.map_controller {
+                map_controller
+                    .try_send(MapCommand::PlacePins {
+                        prediction: None,
+                        dataset: None,
+                    })
+                    .ok();
+                state.legend_visible = false;
+            }
         }
         Message::OpenLink(link) => {
             opener::open(link).ok();
