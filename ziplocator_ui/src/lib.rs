@@ -17,6 +17,7 @@ pub struct State {
     map_controller: Option<mpsc::Sender<MapCommand>>,
     map_frame: Option<ImageHandle>,
     zip_code: String,
+    legend_visible: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -54,6 +55,24 @@ fn view(state: &State) -> Element<Message> {
         if let (Some(controller), Some(frame)) = (&state.map_controller, &state.map_frame) {
             let map = MapWidget { controller, frame };
 
+            let legend = if state.legend_visible {
+                Some(
+                    widget::right(
+                        widget::container(widget::column![
+                            widget::text!("ʘ Prediction").color(iced::color!(0xFF0000)),
+                        ])
+                        .style(|theme: &iced::Theme| widget::container::Style {
+                            background: Some(theme.palette().background.into()),
+                            ..widget::container::rounded_box(theme)
+                        })
+                        .padding(10),
+                    )
+                    .padding(5),
+                )
+            } else {
+                None
+            };
+
             let attribution = widget::container(
                 widget::button(widget::text!("Data from OpenStreetMap"))
                     .style(|theme, status| widget::button::Style {
@@ -67,7 +86,11 @@ fn view(state: &State) -> Element<Message> {
             .align_right(Length::Fill)
             .align_bottom(Length::Fill);
 
-            widget::stack!(map, attribution).into()
+            widget::Stack::new()
+                .push(map)
+                .push_maybe(legend)
+                .push(attribution)
+                .into()
         } else {
             widget::row![].into()
         };
@@ -94,6 +117,8 @@ fn update(state: &mut State, message: Message) {
                     dataset: None,
                 })
                 .ok();
+
+            state.legend_visible = true;
         }
         Message::OpenLink(link) => {
             opener::open(link).ok();
