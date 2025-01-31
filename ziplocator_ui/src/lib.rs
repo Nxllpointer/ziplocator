@@ -73,7 +73,7 @@ fn view(state: &State) -> Element<Message> {
                 None
             };
 
-            let attribution = widget::container(
+            let attribution = widget::bottom_right(
                 widget::button(widget::text!("Data from OpenStreetMap"))
                     .style(|theme, status| widget::button::Style {
                         text_color: Color::BLACK,
@@ -82,9 +82,7 @@ fn view(state: &State) -> Element<Message> {
                     .on_press(Message::OpenLink(
                         "https://www.openstreetmap.org/fixthemap".into(),
                     )),
-            )
-            .align_right(Length::Fill)
-            .align_bottom(Length::Fill);
+            );
 
             widget::Stack::new()
                 .push(map)
