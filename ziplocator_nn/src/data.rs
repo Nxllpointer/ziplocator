@@ -1,5 +1,4 @@
 use std::{
-    io::Cursor,
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -10,13 +9,7 @@ use burn::{
     tensor::{Tensor, TensorData},
 };
 use burn_dataset::DataframeDataset;
-use data_downloader::{DownloadRequest, InZipDownloadRequest};
-use hex_literal::hex;
-use polars::{frame::DataFrame, io::SerReader, prelude::CsvReadOptions};
 use serde::Deserialize;
-
-const DATASET_URL: &str =
-    "https://simplemaps.com/static/data/us-zips/1.90/basic/simplemaps_uszips_basicv1.90.zip";
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct ZipItem {
@@ -27,8 +20,6 @@ pub struct ZipItem {
     pub longitude: f64,
 }
 
-pub type ZipDataset = DataframeDataset<ZipItem>;
-
 #[derive(Clone, Debug)]
 pub struct ZipBatcher<B: Backend>(pub B::Device);
 
@@ -38,33 +29,10 @@ pub struct ZipBatch<B: Backend> {
     pub locations: Tensor<B, 2>,
 }
 
-fn load_dataframe() -> DataFrame {
-    let dataset = data_downloader::get(&InZipDownloadRequest {
-        parent: &DownloadRequest {
-            url: DATASET_URL,
-            sha256_hash: &hex!("911765CB2433F7BDFF22D2817CA1B96BDE8F4B6F5C10FB9AEA1F3310DC04F1F8"),
-        },
-        path: "uszips.csv",
-        sha256_hash: &hex!("0B8F9D378D8868F42324788A457A17434E38BB364060055D5C338A2FFE512285"),
-    })
-    .expect("Downloading dataset");
-
-    let dataset = Cursor::new(dataset);
-
-    CsvReadOptions::default()
-        .with_has_header(true)
-        .into_reader_with_file_handle(dataset)
-        .finish()
-        .expect("Create dataframe")
-        .select(["zip", "lat", "lng"])
-        .expect("Selecting columns")
-}
-
-pub fn load_dataset() -> ZipDataset {
-    DataframeDataset::new(load_dataframe()).expect("Create dataset from dataframe")
-}
-
 pub fn create_loader<B: Backend>(device: &B::Device) -> Arc<dyn DataLoader<ZipBatch<B>>> {
+    let dataset = DataframeDataset::new(ziplocator_data::load_dataframe())
+        .expect("Create dataset from dataframe");
+
     DataLoaderBuilder::new(ZipBatcher(device.clone()))
         .batch_size(100)
         .shuffle(
@@ -73,7 +41,7 @@ pub fn create_loader<B: Backend>(device: &B::Device) -> Arc<dyn DataLoader<ZipBa
                 .unwrap()
                 .as_millis() as u64,
         )
-        .build(load_dataset())
+        .build(dataset)
 }
 
 impl<B: Backend> Batcher<ZipItem, ZipBatch<B>> for ZipBatcher<B> {

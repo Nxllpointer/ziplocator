@@ -4,9 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ziplocator_data.workspace = true
 burn.workspace = true
 burn-dataset.workspace = true
-polars.workspace = true
-data_downloader.workspace = true
-hex-literal.workspace = true
 serde.workspace = true

@@ -10164,15 +10164,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ziplocator_data"
+version = "0.1.0"
+dependencies = [
+ "data_downloader",
+ "hex-literal",
+ "polars",
+]
+
+[[package]]
 name = "ziplocator_nn"
 version = "0.1.0"
 dependencies = [
  "burn",
  "burn-dataset",
- "data_downloader",
- "hex-literal",
- "polars",
  "serde",
+ "ziplocator_data",
 ]
 
 [[package]]
