@@ -4,20 +4,33 @@ use galileo::galileo_types::latlon;
 use iced::{
     futures::{SinkExt, Stream},
     widget::{self, image::Handle as ImageHandle},
-    Color, Element, Length, Subscription,
+    Color, Element, Subscription,
 };
 use map::widget::MapWidget;
 use tokio::sync::mpsc;
 
 use crate::map::worker::{MapCommand, MapWorker};
 
-#[derive(Default)]
 pub struct State {
     inferrer: Box<dyn ziplocator_nn::Inferrer>,
+    dataset: ziplocator_data::Dataset,
     map_controller: Option<mpsc::Sender<MapCommand>>,
     map_frame: Option<ImageHandle>,
     zip_code: String,
     legend_visible: bool,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            inferrer: Box::<dyn ziplocator_nn::Inferrer>::default(),
+            dataset: ziplocator_data::Dataset::load(),
+            map_controller: None,
+            map_frame: None,
+            zip_code: "".into(),
+            legend_visible: false,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -60,6 +73,7 @@ fn view(state: &State) -> Element<Message> {
                     widget::right(
                         widget::container(widget::column![
                             widget::text!("ʘ Prediction").color(iced::color!(0xFF0000)),
+                            widget::text!("ʘ Dataset").color(iced::color!(0x0000FF)),
                         ])
                         .style(|theme: &iced::Theme| widget::container::Style {
                             background: Some(theme.palette().background.into()),
@@ -108,11 +122,15 @@ fn update(state: &mut State, message: Message) {
             };
 
             let prediction = state.inferrer.infer(zip);
+            let dataset = state
+                .dataset
+                .zip_location(zip)
+                .map(|(lat, lon)| latlon!(lat, lon));
 
             map_controller
                 .try_send(MapCommand::PlacePins {
                     prediction: Some(latlon!(prediction.latitude, prediction.longitude)),
-                    dataset: None,
+                    dataset,
                 })
                 .ok();
 

@@ -10191,6 +10191,7 @@ dependencies = [
  "opener",
  "pollster",
  "tokio",
+ "ziplocator_data",
  "ziplocator_nn",
 ]
 

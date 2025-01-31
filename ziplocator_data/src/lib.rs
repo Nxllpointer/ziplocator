@@ -1,6 +1,6 @@
 use data_downloader::{DownloadRequest, InZipDownloadRequest};
 use hex_literal::hex;
-use polars::{frame::DataFrame, io::SerReader, prelude::CsvReadOptions};
+use polars::prelude::*;
 use std::io::Cursor;
 
 const DATASET_URL: &str =
@@ -37,5 +37,34 @@ impl Dataset {
 
     pub fn dataframe(&self) -> DataFrame {
         self.0.clone()
+    }
+
+    pub fn zip_location(&self, zip: u32) -> Option<(f64, f64)> {
+        let matching_zips = self
+            .0
+            .clone()
+            .lazy()
+            .filter(col("zip").eq(zip))
+            .collect()
+            .expect("Collecting matching zips");
+
+        if matching_zips.height() > 0 {
+            let lat = matching_zips
+                .column("lat")
+                .expect("Latittude")
+                .f64()
+                .ok()?
+                .get(0)?;
+            let lng = matching_zips
+                .column("lng")
+                .expect("Longitude")
+                .f64()
+                .ok()?
+                .get(0)?;
+
+            Some((lat, lng))
+        } else {
+            None
+        }
     }
 }
