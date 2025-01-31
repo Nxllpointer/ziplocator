@@ -20,7 +20,7 @@ use galileo::{
     Color, Map, MapView, Messenger, TileSchema,
 };
 use iced::wgpu;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 
 pub enum MapCommand {
     SetSize(iced::Size),
@@ -35,15 +35,22 @@ pub enum MapCommand {
         prediction: Option<GeoPoint2d>,
         dataset: Option<GeoPoint2d>,
     },
-    QueryLocation {
-        screen_pos: iced::Point,
-        location_tx: oneshot::Sender<GeoPoint2d>,
+    QueryLocation(iced::Point),
+}
+
+#[derive(Clone, Debug)]
+pub enum MapMessage {
+    NewFrame {
+        png_data: Vec<u8>,
+        width: u32,
+        height: u32,
     },
+    LocationClicked(GeoPoint2d),
 }
 
 pub struct MapWorker {
     command_rx: mpsc::Receiver<MapCommand>,
-    frame_tx: mpsc::Sender<iced::advanced::image::Handle>,
+    message_tx: mpsc::Sender<MapMessage>,
     redraw_requested: Arc<AtomicBool>,
     map: Map,
 }
@@ -51,7 +58,7 @@ pub struct MapWorker {
 impl MapWorker {
     pub fn new(
         command_rx: mpsc::Receiver<MapCommand>,
-        frame_tx: mpsc::Sender<iced::advanced::image::Handle>,
+        message_tx: mpsc::Sender<MapMessage>,
     ) -> Self {
         let tile_schema = TileSchema::web(18);
         let view = MapView::new(
@@ -83,7 +90,7 @@ impl MapWorker {
 
         Self {
             command_rx,
-            frame_tx,
+            message_tx,
             redraw_requested,
             map,
         }
@@ -97,7 +104,7 @@ impl MapWorker {
         .await
         .expect("failed to create renderer");
 
-        while !self.frame_tx.is_closed() {
+        while !self.message_tx.is_closed() {
             while let Ok(command) = self.command_rx.try_recv() {
                 let view = self.map.target_view();
                 match command {
@@ -138,13 +145,13 @@ impl MapWorker {
 
                         self.map.redraw();
                     }
-                    MapCommand::QueryLocation {
-                        screen_pos,
-                        location_tx,
-                    } => {
+                    MapCommand::QueryLocation(screen_pos) => {
                         let screen_pos = [screen_pos.x as f64, screen_pos.y as f64].into();
                         if let Some(geo) = view.screen_to_map_geo(screen_pos) {
-                            location_tx.send(geo).ok();
+                            self.message_tx
+                                .send(MapMessage::LocationClicked(geo))
+                                .await
+                                .ok();
                         }
                     }
                 }
@@ -164,12 +171,12 @@ impl MapWorker {
                     .expect("Failed to get image bitmap from texture");
 
                 let size = self.map.target_view().size();
-                self.frame_tx
-                    .send(iced::advanced::image::Handle::from_rgba(
-                        size.width() as u32,
-                        size.height() as u32,
-                        bitmap,
-                    ))
+                self.message_tx
+                    .send(MapMessage::NewFrame {
+                        png_data: bitmap,
+                        width: size.width() as u32,
+                        height: size.height() as u32,
+                    })
                     .await
                     .ok();
             }

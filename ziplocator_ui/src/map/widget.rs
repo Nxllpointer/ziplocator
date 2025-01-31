@@ -1,27 +1,24 @@
-use galileo::galileo_types::geo::impls::GeoPoint2d;
 use iced::{
     advanced::{layout::Node, widget::tree, Widget},
     widget::image::Handle as ImageHandle,
     Element, Length, Point, Rectangle, Size,
 };
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 
 use super::worker::MapCommand;
 
-pub struct MapWidget<'a, Message> {
+pub struct MapWidget<'a> {
     pub frame: &'a ImageHandle,
     pub controller: &'a mpsc::Sender<MapCommand>,
-    pub location_clicked: &'a dyn Fn(GeoPoint2d) -> Message,
 }
 
 #[derive(Default)]
 struct MapState {
     grab_start: Option<Point>,
-    location_rx: Option<oneshot::Receiver<GeoPoint2d>>,
 }
 
 impl<'a, Message, Theme, Renderer: iced::advanced::image::Renderer<Handle = ImageHandle>>
-    Widget<Message, Theme, Renderer> for MapWidget<'a, Message>
+    Widget<Message, Theme, Renderer> for MapWidget<'a>
 {
     fn tag(&self) -> iced::advanced::widget::tree::Tag {
         tree::Tag::of::<MapState>()
@@ -56,7 +53,7 @@ impl<'a, Message, Theme, Renderer: iced::advanced::image::Renderer<Handle = Imag
         cursor: iced::advanced::mouse::Cursor,
         _renderer: &Renderer,
         _clipboard: &mut dyn iced::advanced::Clipboard,
-        shell: &mut iced::advanced::Shell<'_, Message>,
+        _shell: &mut iced::advanced::Shell<'_, Message>,
         _viewport: &Rectangle,
     ) {
         let state: &mut MapState = state.state.downcast_mut();
@@ -81,14 +78,9 @@ impl<'a, Message, Theme, Renderer: iced::advanced::image::Renderer<Handle = Imag
                 }
                 iced::mouse::Event::ButtonPressed(iced::mouse::Button::Right) => {
                     if let Some(screen_pos) = cursor.position_in(layout.bounds()) {
-                        let (location_tx, location_rx) = oneshot::channel();
                         self.controller
-                            .try_send(MapCommand::QueryLocation {
-                                screen_pos,
-                                location_tx,
-                            })
+                            .try_send(MapCommand::QueryLocation(screen_pos))
                             .ok();
-                        state.location_rx = Some(location_rx)
                     }
                 }
                 iced::mouse::Event::CursorMoved { position } => {
@@ -106,12 +98,6 @@ impl<'a, Message, Theme, Renderer: iced::advanced::image::Renderer<Handle = Imag
             },
             _ => {}
         };
-
-        if let Some(location_rx) = &mut state.location_rx {
-            if let Ok(geo) = location_rx.try_recv() {
-                shell.publish((self.location_clicked)(geo));
-            }
-        }
     }
 
     fn draw(
@@ -135,9 +121,9 @@ impl<'a, Message, Theme, Renderer: iced::advanced::image::Renderer<Handle = Imag
 }
 
 impl<'a, Message: 'a, Theme, Renderer: iced::advanced::image::Renderer<Handle = ImageHandle>>
-    From<MapWidget<'a, Message>> for Element<'a, Message, Theme, Renderer>
+    From<MapWidget<'a>> for Element<'a, Message, Theme, Renderer>
 {
-    fn from(value: MapWidget<'a, Message>) -> Self {
+    fn from(value: MapWidget<'a>) -> Self {
         Element::new(value)
     }
 }

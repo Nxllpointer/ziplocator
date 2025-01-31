@@ -1,15 +1,12 @@
 mod map;
 
-use galileo::galileo_types::{
-    geo::{impls::GeoPoint2d, GeoPoint},
-    latlon,
-};
+use galileo::galileo_types::{geo::GeoPoint, latlon};
 use iced::{
     futures::{SinkExt, Stream},
     widget::{self, image::Handle as ImageHandle},
     Color, Element, Subscription,
 };
-use map::widget::MapWidget;
+use map::{widget::MapWidget, worker::MapMessage};
 use tokio::sync::mpsc;
 
 use crate::map::worker::{MapCommand, MapWorker};
@@ -39,11 +36,10 @@ impl Default for State {
 #[derive(Clone, Debug)]
 pub enum Message {
     SetMapController(mpsc::Sender<MapCommand>),
-    UpdateMapFrame(ImageHandle),
+    MapMessage(MapMessage),
     ZipCodeChanged(String),
     RunPrediction,
     OpenLink(String),
-    LocationClicked(GeoPoint2d),
 }
 
 fn view(state: &State) -> Element<Message> {
@@ -70,11 +66,7 @@ fn view(state: &State) -> Element<Message> {
 
     let map: Element<_> =
         if let (Some(controller), Some(frame)) = (&state.map_controller, &state.map_frame) {
-            let map = MapWidget {
-                controller,
-                frame,
-                location_clicked: &Message::LocationClicked,
-            };
+            let map = MapWidget { controller, frame };
 
             let legend = if state.legend_visible {
                 Some(
@@ -121,7 +113,19 @@ fn view(state: &State) -> Element<Message> {
 fn update(state: &mut State, message: Message) {
     match message {
         Message::SetMapController(controller) => state.map_controller = Some(controller),
-        Message::UpdateMapFrame(handle) => state.map_frame = Some(handle),
+        Message::MapMessage(map_message) => match map_message {
+            MapMessage::NewFrame {
+                png_data,
+                width,
+                height,
+            } => state.map_frame = Some(widget::image::Handle::from_rgba(width, height, png_data)),
+            MapMessage::LocationClicked(geo) => {
+                if let Some(zip) = state.dataset.nearest_zip(geo.lat(), geo.lon()) {
+                    state.zip_code = zip.to_string();
+                    update(state, Message::RunPrediction);
+                }
+            }
+        },
         Message::ZipCodeChanged(zip_code) => state.zip_code = zip_code,
         Message::RunPrediction => {
             let (Some(map_controller), Ok(zip)) = (&state.map_controller, state.zip_code.parse())
@@ -147,29 +151,23 @@ fn update(state: &mut State, message: Message) {
         Message::OpenLink(link) => {
             opener::open(link).ok();
         }
-        Message::LocationClicked(geo) => {
-            if let Some(zip) = state.dataset.nearest_zip(geo.lat(), geo.lon()) {
-                state.zip_code = zip.to_string();
-                update(state, Message::RunPrediction);
-            }
-        }
     }
 }
 
 fn map_worker() -> impl Stream<Item = Message> {
     iced::stream::channel(10, |mut messages| async move {
         let (command_tx, command_rx) = mpsc::channel(999);
-        let (frame_tx, mut frame_rx) = mpsc::channel(10);
+        let (message_tx, mut message_rx) = mpsc::channel(10);
 
         messages
             .send(Message::SetMapController(command_tx))
             .await
             .ok();
 
-        tokio::spawn(MapWorker::new(command_rx, frame_tx).run());
+        tokio::spawn(MapWorker::new(command_rx, message_tx).run());
 
-        while let Some(frame) = frame_rx.recv().await {
-            messages.send(Message::UpdateMapFrame(frame)).await.ok();
+        while let Some(map_message) = message_rx.recv().await {
+            messages.send(Message::MapMessage(map_message)).await.ok();
         }
     })
 }
