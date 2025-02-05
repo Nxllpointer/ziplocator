@@ -15,5 +15,5 @@ fn main() {
         .parse()
         .expect("Invalid zip code");
 
-    dbg!(inferrer.infer(zip));
+    dbg!(inferrer.infer(zip, None));
 }

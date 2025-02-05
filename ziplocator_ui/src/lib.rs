@@ -1,3 +1,4 @@
+mod debug;
 mod map;
 
 use galileo::galileo_types::{geo::GeoPoint, latlon};
@@ -18,6 +19,8 @@ pub struct State {
     map_frame: Option<ImageHandle>,
     zip_code: String,
     legend_visible: bool,
+    debug_enabled: bool,
+    nn_layers: debug::Layers,
 }
 
 impl Default for State {
@@ -29,6 +32,8 @@ impl Default for State {
             map_frame: None,
             zip_code: "".into(),
             legend_visible: false,
+            debug_enabled: false,
+            nn_layers: Vec::new(),
         }
     }
 }
@@ -41,6 +46,7 @@ pub enum Message {
     RunPrediction,
     ClearPrediction,
     OpenLink(String),
+    ToggleDebug,
 }
 
 fn view(state: &State) -> Element<Message> {
@@ -85,7 +91,13 @@ fn view(state: &State) -> Element<Message> {
                                 widget::container(widget::text!("Clear")).center_x(Length::Fill)
                             )
                             .style(widget::button::danger)
-                            .on_press(Message::ClearPrediction)
+                            .on_press(Message::ClearPrediction),
+                            widget::Space::with_height(5),
+                            widget::button(
+                                widget::container(widget::text!("Debug")).center_x(Length::Fill)
+                            )
+                            .style(widget::button::secondary)
+                            .on_press(Message::ToggleDebug)
                         ]
                         .width(Length::Shrink),
                     )
@@ -112,8 +124,15 @@ fn view(state: &State) -> Element<Message> {
                 )),
         );
 
+        let debug_view = if state.debug_enabled && state.legend_visible {
+            Some(debug::view(&state.nn_layers))
+        } else {
+            None
+        };
+
         widget::Stack::new()
             .push(map)
+            .push_maybe(debug_view)
             .push_maybe(legend)
             .push(attribution)
             .into()
@@ -147,7 +166,9 @@ fn update(state: &mut State, message: Message) {
                 return;
             };
 
-            let prediction = state.inferrer.infer(zip);
+            let mut recorder = ziplocator_nn::LayerOutputRecorder::default();
+
+            let prediction = state.inferrer.infer(zip, Some(&mut recorder));
             let dataset = state
                 .dataset
                 .zip_location(zip)
@@ -161,6 +182,7 @@ fn update(state: &mut State, message: Message) {
                 .ok();
 
             state.legend_visible = true;
+            state.nn_layers = recorder.layers;
         }
         Message::ClearPrediction => {
             if let Some(map_controller) = &state.map_controller {
@@ -175,6 +197,9 @@ fn update(state: &mut State, message: Message) {
         }
         Message::OpenLink(link) => {
             opener::open(link).ok();
+        }
+        Message::ToggleDebug => {
+            state.debug_enabled = !state.debug_enabled;
         }
     }
 }
