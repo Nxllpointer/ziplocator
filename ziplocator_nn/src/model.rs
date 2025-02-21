@@ -1,12 +1,12 @@
 use burn::{
     module::Module,
-    nn::{loss::MseLoss, Linear, LinearConfig, Relu, Sigmoid, Tanh},
+    nn::{loss::MseLoss, Linear, LinearConfig, Relu, Tanh},
     prelude::Backend,
     tensor::Tensor,
     train::RegressionOutput,
 };
 
-const HIDDEN_SIZE: usize = 30;
+pub const INPUT_SIZE: usize = 18;
 
 #[derive(Module, Debug)]
 pub struct ZipModel<B: Backend> {
@@ -15,18 +15,16 @@ pub struct ZipModel<B: Backend> {
     lin3: Linear<B>,
     lin4: Linear<B>,
     lin5: Linear<B>,
-    lin6: Linear<B>,
 }
 
 impl<B: Backend> ZipModel<B> {
     pub fn new(device: &B::Device) -> Self {
         Self {
-            lin1: LinearConfig::new(1, HIDDEN_SIZE).init(device),
-            lin2: LinearConfig::new(HIDDEN_SIZE, HIDDEN_SIZE).init(device),
-            lin3: LinearConfig::new(HIDDEN_SIZE, HIDDEN_SIZE).init(device),
-            lin4: LinearConfig::new(HIDDEN_SIZE, HIDDEN_SIZE).init(device),
-            lin5: LinearConfig::new(HIDDEN_SIZE, HIDDEN_SIZE).init(device),
-            lin6: LinearConfig::new(HIDDEN_SIZE, 2).init(device),
+            lin1: LinearConfig::new(INPUT_SIZE, 64).init(device),
+            lin2: LinearConfig::new(64, 32).init(device),
+            lin3: LinearConfig::new(32, 16).init(device),
+            lin4: LinearConfig::new(16, 8).init(device),
+            lin5: LinearConfig::new(8, 2).init(device),
         }
     }
 
@@ -47,25 +45,26 @@ impl<B: Backend> ZipModel<B> {
 
         record(&x);
 
-        // Scale 5 digit zip codes down to a reasonable size
-        x = x / 10_000.0;
-        record(&x);
-
         x = self.lin1.forward(x);
-        x = Tanh.forward(x);
-        record(&x);
-        x = self.lin2.forward(x);
-        x = self.lin3.forward(x);
-        x = self.lin5.forward(x);
         x = Relu.forward(x);
         record(&x);
-        x = self.lin4.forward(x);
-        x = Sigmoid.forward(x);
-        record(&x);
-        x = self.lin6.forward(x);
 
-        // Clamp between [-180, 180] degrees
-        x = Tanh.forward(x) * 180.0;
+        x = self.lin2.forward(x);
+        x = Tanh.forward(x);
+        record(&x);
+
+        x = self.lin3.forward(x);
+        x = Tanh.forward(x);
+        record(&x);
+
+        x = self.lin4.forward(x);
+        x = Tanh.forward(x);
+        record(&x);
+
+        x = self.lin5.forward(x);
+        record(&x);
+
+        x = x * 100.0;
         record(&x);
 
         x

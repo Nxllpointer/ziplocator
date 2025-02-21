@@ -29,7 +29,7 @@ impl<B: Backend> ValidStep<crate::ZipBatch<B>, RegressionOutput<B>> for crate::Z
 pub fn train<B: AutodiffBackend>(device: &B::Device) {
     let model = crate::ZipModel::<B>::new(device);
     let optimizer = AdamConfig::new().init();
-    let lr_scheduler = ExponentialLrSchedulerConfig::new(0.01, 0.9998)
+    let lr_scheduler = ExponentialLrSchedulerConfig::new(0.01, 0.9999)
         .init()
         .unwrap();
 

@@ -44,24 +44,38 @@ pub fn create_loader<B: Backend>(device: &B::Device) -> Arc<dyn DataLoader<ZipBa
         .build(dataset)
 }
 
+pub fn create_zip_tensor<B: Backend>(device: &B::Device, zip: u32) -> Tensor<B, 2> {
+    let digits: Vec<f64> = format!("{:b}", zip)
+        .chars()
+        .map(|d| d.to_digit(2).unwrap() as f64)
+        .collect();
+    let digits = std::iter::repeat(0.0)
+        .take(crate::INPUT_SIZE - digits.len())
+        .chain(digits)
+        .collect();
+
+    let zip_data = TensorData::new::<f64, _>(digits, vec![1, crate::INPUT_SIZE]);
+
+    Tensor::from_data(zip_data, device)
+}
+
 impl<B: Backend> Batcher<ZipItem, ZipBatch<B>> for ZipBatcher<B> {
     fn batch(&self, items: Vec<ZipItem>) -> ZipBatch<B> {
-        let (zips, locations): (Vec<Tensor<B, 1>>, Vec<Tensor<B, 1>>) = items
+        let (zips, locations): (Vec<Tensor<B, 2>>, Vec<Tensor<B, 2>>) = items
             .into_iter()
             .map(|item| {
-                let zip_data = TensorData::new::<f64, _>(vec![item.zip as f64], vec![1]);
                 let location_data =
-                    TensorData::new::<f64, _>(vec![item.latitude, item.longitude], vec![2]);
+                    TensorData::new::<f64, _>(vec![item.latitude, item.longitude], vec![1, 2]);
                 (
-                    Tensor::from_data(zip_data, &self.0),
+                    create_zip_tensor(&self.0, item.zip),
                     Tensor::from_data(location_data, &self.0),
                 )
             })
             .unzip();
 
         ZipBatch {
-            zips: Tensor::stack(zips, 0).to_device(&self.0),
-            locations: Tensor::stack(locations, 0).to_device(&self.0),
+            zips: Tensor::cat(zips, 0).to_device(&self.0),
+            locations: Tensor::cat(locations, 0).to_device(&self.0),
         }
     }
 }
